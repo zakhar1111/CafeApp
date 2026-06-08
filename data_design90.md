@@ -27,3 +27,19 @@ This schema covers all listed requirements:
 - ✅ Staff actions
 - ✅ Historical price preservation
 - ✅ Table occupancy lifecycle tracking.
+
+## fixes for solid design
+The only structural change for solid design production-ready is:
+```
+Bills
+(
+    Id PK,
+    Order_id UNIQUE
+)
+```
+and
+```
+Orders.TableSession_id NULL
+```
+for takeout orders.
+
