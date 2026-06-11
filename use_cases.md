@@ -1,4 +1,4 @@
-For your current restaurant domain, the use cases should be grouped around **aggregate roots**, because later each aggregate will typically have its own commands, handlers, repository, state machine, and domain events.
+The use cases are grouped around **aggregate roots**, for later commands, handlers, repository, state machine, and domain events.
 
 # Booking Aggregate
 
