@@ -1,9 +1,9 @@
 # CafeApp
 - [bound context](bounded_context.md)
 - [requirements](Requirements.md)
-- Use Cases
+- [Use Cases](use_cases.md)
 - [data design schema 3NF](data_design97.md)
-- State Machine
+- [State Machine](state_machine.md)
 - [Aggregates](data_design97.md)
 - Rich Domain Model
 - Domain Events
