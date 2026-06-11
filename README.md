@@ -1,3 +1,13 @@
 # CafeApp
+- [bound context](bounded_context.md)
 - [requirements](Requirements.md)
-- [data design](data_design97.md)
+- Use Cases
+- [data design schema 3NF](data_design97.md)
+- State Machine
+- [Aggregates](data_design97.md)
+- Rich Domain Model
+- Domain Events
+- Refine schema
+- EF mapping
+- CQRS
+- API
