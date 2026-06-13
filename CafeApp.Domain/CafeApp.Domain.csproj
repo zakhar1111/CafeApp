@@ -6,4 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Entities\MenuCategory\" />
+    <Folder Include="Entities\Bill\" />
+    <Folder Include="Entities\Booking\" />
+    <Folder Include="Entities\TableSession\" />
+    <Folder Include="Entities\Order\" />
+  </ItemGroup>
+
 </Project>
