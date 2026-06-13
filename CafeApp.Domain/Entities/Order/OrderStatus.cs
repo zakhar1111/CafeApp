@@ -7,9 +7,11 @@ public class OrderStatus
 }
 public enum OrderStatusEnum
 {
+    Draft = 0,
     Created = 1,
     Confirmed = 2,
-    Pending = 3,
+    Priparing = 3,
     Ready = 4,
-    Closed = 5
+    Served = 5,
+    Closed = 6
 }
