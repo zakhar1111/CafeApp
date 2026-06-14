@@ -1,10 +1,11 @@
 ﻿namespace CafeApp.Domain;
 
-public class BookingStatus
-{
-    public int Id { get; set; }
-    public string Name { get; set; }
-}
+// trade-off - Look-up table need only If status values are managed by administrators  
+//public class BookingStatus
+//{
+//    public int Id { get; set; }
+//    public string Name { get; set; }
+//}
 public enum BookingStatusEnum
 {
     Canceled = 1,
