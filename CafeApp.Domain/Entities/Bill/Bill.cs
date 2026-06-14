@@ -1,4 +1,6 @@
-﻿namespace CafeApp.Domain;
+﻿using System.Runtime.ConstrainedExecution;
+
+namespace CafeApp.Domain;
 
 public class Bill
 {
@@ -24,3 +26,22 @@ public class Bill
     public IReadOnlyCollection<Payment> Payments 
         => _payments.AsReadOnly();
 }
+
+//Invariants:
+//   Cannot be paid twice
+//   Total must equal sum of order snapshot
+//   Adjustments cannot make total negative
+//   Bill must be generated only once per order
+
+//Commands
+//   GenerateBill
+//   AddAdjustment
+//   MarkAsPaid
+
+//State machine
+//   Pending → Generated → Paid → Closed
+
+//Domain events
+//   BillGenerated
+//   BillAdjusted
+//   PaymentReceived
