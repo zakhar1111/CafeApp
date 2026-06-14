@@ -1,6 +1,6 @@
 ﻿namespace CafeApp.Domain;
 
-public class  OrderItem
+public class OrderItem
 {
     public int Id { get; set; }
 
@@ -11,4 +11,8 @@ public class  OrderItem
 
     public int Quantity { get; set; }
     public decimal Price { get; set; }
+
+    private readonly List<OrderItemModification> _modifications = new(); 
+    public IReadOnlyCollection<OrderItemModification> Modifications 
+        => _modifications.AsReadOnly();
 }
