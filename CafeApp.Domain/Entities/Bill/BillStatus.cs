@@ -7,8 +7,9 @@ public class BillStatus
 }
 public enum BillStatusEnum
 {
-    Draft = 1,
-    Issued = 2,
-    Paid = 3,
-    Refunded = 4
+    Generated = 1,
+    Finalized = 2,
+    PartiallyPaid = 3,
+    Paid = 4,
+    Void = 5
 }

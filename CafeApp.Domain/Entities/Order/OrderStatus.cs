@@ -13,5 +13,6 @@ public enum OrderStatusEnum
     Priparing = 3,
     Ready = 4,
     Served = 5,
-    Closed = 6
+    Closed = 6,
+    Cancelled = 7
 }
