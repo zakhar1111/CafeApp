@@ -4,14 +4,14 @@ namespace CafeApp.Domain;
 
 public class Orders
 {
-    public int Id { get; set; }
+    public int Id { get; private set; }
 
 
-    public int CreatedByStaffId { get; set; } //FK
-    public int? TableSessionId { get; set; } //FK
+    public int CreatedByStaffId { get; private set; } //FK
+    public int? TableSessionId { get; private set; } //FK
 
 
-    public DateTime CreatedTime { get; set; }
+    public DateTime CreatedTime { get; private set; }
 
 
 
@@ -22,8 +22,8 @@ public class Orders
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents;
 
 
-    public OrderStatusEnum OrderStatus { get; set; }
-    public OrderTypeEnum OrderType { get; set; }
+    public OrderStatusEnum OrderStatus { get; private set; }
+    public OrderTypeEnum OrderType { get; private set; }
 
     private Orders() { }
 

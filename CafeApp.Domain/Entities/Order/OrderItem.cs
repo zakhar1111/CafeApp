@@ -2,15 +2,15 @@
 
 public class OrderItem
 {
-    public int Id { get; set; }
+    public int Id { get; private set; }
 
 
-    public int OrderId { get; set; } //FK
-    public int MenuItemId { get; set; } //FK
+    public int OrderId { get; private set; } //FK
+    public int MenuItemId { get; private set; } //FK
 
 
-    public int Quantity { get; set; }
-    public decimal Price { get; set; }
+    public int Quantity { get; private set; }
+    public decimal Price { get; private set; }
 
     private readonly List<OrderItemModification> _modifications = new(); 
     public IReadOnlyCollection<OrderItemModification> Modifications 
