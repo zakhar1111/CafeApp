@@ -2,6 +2,23 @@
 
 public class MenuItemModification
 {
-    public int MenuItemId { get; set; } //FK + PK
-    public int ModificationId { get; set; } //FK + PK
+    private MenuItemModification()
+    {
+    }
+    public int MenuItemId { get; private set; } //FK + PK
+    public int ModificationId { get; private set; } //FK + PK
+
+    #region Factory
+    public static MenuItemModification Create(
+        int menuItemId,
+        int modificationId)
+    {
+
+        return new MenuItemModification
+        {
+            MenuItemId = menuItemId,
+            ModificationId = modificationId
+        };
+    }
+    #endregion
 }
