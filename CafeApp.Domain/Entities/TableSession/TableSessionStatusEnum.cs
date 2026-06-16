@@ -2,7 +2,6 @@
 
 public enum TableSessionStatusEnum
 {
-    Opened = 1,
-    Active = 2,
-    Closed = 3
+    Active = 1,
+    Ended = 2
 }
