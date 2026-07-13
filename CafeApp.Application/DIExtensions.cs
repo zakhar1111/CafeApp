@@ -7,9 +7,7 @@ namespace CafeApp.Application;
 
 public static class DIExtensions
 {
-    public static IServiceCollection AddClinicInfrastructure(
-        this IServiceCollection services,
-        IConfiguration config)
+    public static IServiceCollection AddCafeApplication(this IServiceCollection services,IConfiguration config)
     {
         services.AddScoped<IDomainEventDispatcher,DomainEventDispatcher>();
 
