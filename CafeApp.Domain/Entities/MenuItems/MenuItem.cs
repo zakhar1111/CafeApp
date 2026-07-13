@@ -4,6 +4,7 @@ using System;
 namespace CafeApp.Domain;
 
 public class MenuItem
+    : IHasDomainEvents
 {
     private MenuItem() { }
     public int Id { get; private set; }

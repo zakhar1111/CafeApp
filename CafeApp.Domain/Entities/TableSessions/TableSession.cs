@@ -3,6 +3,7 @@
 namespace CafeApp.Domain;
 
 public class TableSession
+    : IHasDomainEvents
 {
     private TableSession() { }
     public int Id { get; private set; }

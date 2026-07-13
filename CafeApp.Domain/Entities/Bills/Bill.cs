@@ -3,6 +3,7 @@
 namespace CafeApp.Domain;
 
 public class Bill
+    : IHasDomainEvents
 {
     private Bill() { }
     public int Id { get; private set; }

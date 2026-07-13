@@ -1,6 +1,7 @@
 ﻿namespace CafeApp.Domain;
 
-public class Booking
+public class Booking 
+    : IHasDomainEvents
 {
     private Booking() { }
     public int Id { get; private set; }

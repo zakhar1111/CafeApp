@@ -1,0 +1,1290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<codebase>
+
+  <file_summary>
+    This file is a comprehensive representation of the entire codebase.
+    
+    Total Files: 26
+    Total Lines: 1153
+    Total Characters: 36827
+    
+    Languages:
+      - csharp: 26 files
+    
+  </file_summary>
+
+  <directory_structure>
+    └── CafeApp.Domain
+        ├── Entities
+        │   ├── Bill
+        │   │   ├── Bill.cs
+        │   │   ├── BillAdjustment.cs
+        │   │   ├── BillStatusEnum.cs
+        │   │   ├── PayStatus.cs
+        │   │   ├── PayTypeEnum.cs
+        │   │   └── Payment.cs
+        │   ├── Booking
+        │   │   ├── Booking.cs
+        │   │   └── BookingStatusEnum.cs
+        │   ├── Customer.cs
+        │   ├── MenuItem
+        │   │   ├── MenuCategory.cs
+        │   │   ├── MenuItem.cs
+        │   │   ├── MenuItemModification.cs
+        │   │   └── Modification.cs
+        │   ├── Order
+        │   │   ├── OrderItem.cs
+        │   │   ├── OrderItemModification.cs
+        │   │   ├── OrderStatusEnum.cs
+        │   │   ├── OrderTypeEnum.cs
+        │   │   └── Orders.cs
+        │   ├── Staff.cs
+        │   └── TableSession
+        │       ├── TableSession.cs
+        │       ├── TableSessionStatusEnum.cs
+        │       └── Tables.cs
+        ├── ValueObjects
+        │   └── VO.cs
+        └── obj
+            └── Debug
+                └── net8.0
+                    ├── .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
+                    ├── CafeApp.Domain.AssemblyInfo.cs
+                    └── CafeApp.Domain.GlobalUsings.g.cs
+    
+  </directory_structure>
+
+  <files>
+    <file path="CafeApp.Domain\Entities\Bill\Bill.cs" language="csharp" lines="188">
+           1|﻿using System.Runtime.ConstrainedExecution;
+           2|
+           3|namespace CafeApp.Domain;
+           4|
+           5|public class Bill
+           6|{
+           7|    private Bill() { }
+           8|    public int Id { get; private set; }
+           9|
+          10|
+          11|    public int OrderId { get; private set; } //FK
+          12|
+          13|
+          14|    public decimal TotalAmount =&gt; 
+          15|        BaseAmount + Adjustments.Sum(x =&gt; x.Amount) - Payments.Sum(x =&gt; x.Amount);
+          16|    public decimal BaseAmount { get; private set; }
+          17|    public decimal PaidAmount { get; private set; }
+          18|
+          19|    public DateTime CreatedTime { get; private set; }
+          20|    public DateTime? DeliveredTime { get; private set; }
+          21|
+          22|
+          23|
+          24|    public BillStatusEnum BillStatus { get; private set; }
+          25|
+          26|    private readonly List&lt;BillAdjustment&gt; _adjustments = new();
+          27|    public IReadOnlyCollection&lt;BillAdjustment&gt; Adjustments
+          28|        =&gt; _adjustments.AsReadOnly();
+          29|
+          30|    private readonly List&lt;Payment&gt; _payments = new(); 
+          31|    public IReadOnlyCollection&lt;Payment&gt; Payments 
+          32|        =&gt; _payments.AsReadOnly();
+          33|
+          34|    #region Factory Method
+          35|    public static Bill Create(int orderId,decimal baseAmount)
+          36|    {
+          37|        if (baseAmount &lt; 0)
+          38|            throw new InvalidOperationException();
+          39|
+          40|        var bill = new Bill
+          41|        {
+          42|            OrderId = orderId,
+          43|            BaseAmount = baseAmount,
+          44|            CreatedTime = DateTime.UtcNow,
+          45|            BillStatus = BillStatusEnum.Generated
+          46|        };
+          47|
+          48|        bill.AddDomainEvent(
+          49|            new BillGenerated(
+          50|                bill.Id,
+          51|                orderId,
+          52|                baseAmount));
+          53|
+          54|        return bill;
+          55|    }
+          56|    #endregion
+          57|
+          58|    private readonly List&lt;IDomainEvent&gt; _domainEvents = new();
+          59|    public IReadOnlyCollection&lt;IDomainEvent&gt; DomainEvents =&gt; _domainEvents;
+          60|
+          61|    #region Domain Events
+          62|    private void AddDomainEvent(IDomainEvent domainEvent)
+          63|    {
+          64|        _domainEvents.Add(domainEvent);
+          65|    }
+          66|
+          67|    public void ClearEvents()
+          68|    {
+          69|        _domainEvents.Clear();
+          70|    }
+          71|    #endregion
+          72|
+          73|    #region Commands (Behavior)
+          74|    public void AddAdjustment(decimal amount,string reason)
+          75|    {
+          76|        EnsureNotClosed();
+          77|        EnsureNotPaid();
+          78|
+          79|        var adjustment =
+          80|            BillAdjustment.Create(
+          81|                amount,
+          82|                reason);
+          83|
+          84|        _adjustments.Add(adjustment);
+          85|
+          86|        if (TotalAmount &lt; 0)
+          87|            throw new InvalidOperationException(
+          88|                &quot;Bill cannot become negative.&quot;);
+          89|
+          90|        AddDomainEvent(
+          91|            new BillAdjustmentAdded(
+          92|                Id,
+          93|                amount,
+          94|                reason));
+          95|    }
+          96|    public void RegisterPayment(decimal amount)
+          97|    {
+          98|        EnsureNotClosed();
+          99|
+         100|        if (amount &lt;= 0)
+         101|            throw new InvalidOperationException();
+         102|
+         103|        if (PaidAmount + amount &gt; TotalAmount)
+         104|            throw new InvalidOperationException(
+         105|                &quot;Overpayment not allowed.&quot;);
+         106|
+         107|        PaidAmount += amount;
+         108|
+         109|        AddDomainEvent(
+         110|            new BillPaymentReceived(
+         111|                Id,
+         112|                amount));
+         113|
+         114|        if (PaidAmount == TotalAmount)
+         115|        {
+         116|            BillStatus = BillStatusEnum.Paid;
+         117|
+         118|            AddDomainEvent(
+         119|                new BillPaid(Id));
+         120|        }
+         121|        else
+         122|        {
+         123|            BillStatus = BillStatusEnum.PartiallyPaid;
+         124|        }
+         125|    }
+         126|    
+         127|    public void Close()
+         128|    {
+         129|        if (BillStatus != BillStatusEnum.Paid)
+         130|            throw new InvalidOperationException(
+         131|                &quot;Only paid bills can be closed.&quot;);
+         132|
+         133|        BillStatus = BillStatusEnum.Closed;
+         134|
+         135|        DeliveredTime = DateTime.UtcNow;
+         136|
+         137|        AddDomainEvent(new BillClosed(Id));
+         138|    }
+         139|    #endregion
+         140|
+         141|    #region Invariants
+         142|
+         143|    private void EnsureNotClosed()
+         144|    {
+         145|        if (BillStatus == BillStatusEnum.Closed)
+         146|            throw new InvalidOperationException(&quot;Bill is already Closed.&quot;);
+         147|
+         148|    }
+         149|    private void EnsureNotPaid()
+         150|    {
+         151|        if (BillStatus == BillStatusEnum.Paid)
+         152|            throw new InvalidOperationException(&quot;Bill is already Paid.&quot;);
+         153|    }
+         154|
+         155|    #endregion
+         156|}
+         157|
+         158|//Invariants:
+         159|//   Cannot be paid twice
+         160|//   Total must equal sum of order snapshot
+         161|//   Adjustments cannot make total negative
+         162|//   Bill must be generated only once per order
+         163|
+         164|//Commands
+         165|//   GenerateBill
+         166|//   AddAdjustment
+         167|//   MarkAsPaid
+         168|
+         169|//State machine
+         170|//   Pending → Generated → Paid → Closed
+         171|
+         172|//Domain events
+         173|//   BillGenerated
+         174|//   BillAdjusted
+         175|//   PaymentReceived
+         176|
+         177|public record BillGenerated(int BillId,int OrderId,decimal Amount) 
+         178|    : IDomainEvent;
+         179|
+         180|public record BillAdjustmentAdded(int BillId,decimal Amount,string Reason) 
+         181|    : IDomainEvent;
+         182|
+         183|public record BillPaymentReceived(int BillId, decimal Amount) 
+         184|    : IDomainEvent;
+         185|
+         186|public record BillPaid(int BillId) : IDomainEvent;
+         187|
+         188|public record BillClosed(int BillId) : IDomainEvent;
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Bill\BillAdjustment.cs" language="csharp" lines="23">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class BillAdjustment
+           4|{
+           5|    private BillAdjustment() { }
+           6|    public int Id { get; private set; }
+           7|    public int BillId { get; private set; } //FK
+           8|    public decimal Amount { get; private set; }
+           9|    public string Reason { get; private set; }
+          10|
+          11|    public static BillAdjustment Create(decimal amount,string reason)
+          12|    {
+          13|        if (string.IsNullOrWhiteSpace(reason))
+          14|            throw new InvalidOperationException();
+          15|
+          16|        return new BillAdjustment
+          17|        {
+          18|            Amount = amount,
+          19|            Reason = reason
+          20|        };
+          21|    }
+          22|}
+          23|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Bill\BillStatusEnum.cs" language="csharp" lines="11">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum BillStatusEnum
+           4|{
+           5|    Draft = 0,
+           6|    Generated = 1,
+           7|    //Finalized = 2,
+           8|    PartiallyPaid = 3,
+           9|    Paid = 4,
+          10|    Closed = 5
+          11|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Bill\Payment.cs" language="csharp" lines="20">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class Payment
+           4|{ 
+           5|    public int Id { get; set; }
+           6|
+           7|
+           8|    public int BillId { get; set; } //FK
+           9|    public int CustomerId { get; set; } //FK
+          10|    
+          11|
+          12|    public decimal Amount { get; set; }
+          13|    public DateTime PaymentTime { get; set; }
+          14|
+          15|
+          16|
+          17|    public PayTypeEnum PayType { get; set; }
+          18|    public PayStatusEnum PayStatus { get; set; }
+          19|}
+          20|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Bill\PayStatus.cs" language="csharp" lines="8">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum PayStatusEnum
+           4|{
+           5|    Pending = 1,
+           6|    Completed = 2,
+           7|    Failed = 3
+           8|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Bill\PayTypeEnum.cs" language="csharp" lines="8">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum PayTypeEnum
+           4|{
+           5|    Cash = 1,
+           6|    CreditCard = 2,
+           7|    MobilePayment = 3
+           8|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Booking\Booking.cs" language="csharp" lines="179">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class Booking
+           4|{
+           5|    private Booking() { }
+           6|    public int Id { get; private set; }
+           7|
+           8|
+           9|    public int? TableId { get; private set; } //FK
+          10|    public int CustomerId { get; private set; } //FK
+          11|    
+          12|
+          13|    public BookingStatusEnum BookingState { get; private set; } 
+          14|
+          15|
+          16|    public DateTime ReservationTime { get; private set; }
+          17|    public int PeopleNumber { get; private set; }
+          18|
+          19|    #region Factory Method
+          20|    public static Booking Create(int customerId,DateTime reservationTime,int peopleNumber)
+          21|    {
+          22|        if (peopleNumber &lt;= 0)
+          23|            throw new InvalidOperationException(
+          24|                &quot;Party size must be positive.&quot;);
+          25|
+          26|        if (reservationTime &lt;= DateTime.UtcNow)
+          27|            throw new InvalidOperationException(
+          28|                &quot;Reservation must be in future.&quot;);
+          29|
+          30|        var booking = new Booking
+          31|        {
+          32|            CustomerId = customerId,
+          33|            ReservationTime = reservationTime,
+          34|            PeopleNumber = peopleNumber,
+          35|            BookingState = BookingStatusEnum.Pending
+          36|        };
+          37|
+          38|        booking.AddDomainEvent(
+          39|            new BookingCreated(
+          40|                booking.Id,
+          41|                customerId));
+          42|
+          43|        return booking;
+          44|    }
+          45|    #endregion
+          46|
+          47|    private readonly List&lt;IDomainEvent&gt; _domainEvents = new();
+          48|    public IReadOnlyCollection&lt;IDomainEvent&gt; DomainEvents =&gt; _domainEvents;
+          49|
+          50|    #region Domain Events
+          51|    private void AddDomainEvent(IDomainEvent domainEvent)
+          52|    {
+          53|        _domainEvents.Add(domainEvent);
+          54|    }
+          55|
+          56|    public void ClearEvents()
+          57|    {
+          58|        _domainEvents.Clear();
+          59|    }
+          60|    #endregion
+          61|
+          62|    #region Commands (Behavior)
+          63|    public void AssignTable(int tableId)
+          64|    {
+          65|        EnsureNotFinished();
+          66|
+          67|        TableId = tableId;
+          68|
+          69|        AddDomainEvent(
+          70|            new TableAssignedToBooking(
+          71|                Id,
+          72|                tableId));
+          73|    }
+          74|
+          75|
+          76|    public void Confirm()
+          77|    {
+          78|        if (BookingState != BookingStatusEnum.Pending)
+          79|            throw new InvalidOperationException(
+          80|                &quot;Only pending booking can be confirmed.&quot;);
+          81|
+          82|        BookingState = BookingStatusEnum.Confirmed;
+          83|
+          84|        AddDomainEvent(
+          85|            new BookingConfirmed(Id));
+          86|    }
+          87|
+          88|    public void Cancel(string reason)
+          89|    {
+          90|        if (BookingState == BookingStatusEnum.Completed)
+          91|            throw new InvalidOperationException(
+          92|                &quot;Completed booking cannot be cancelled.&quot;);
+          93|
+          94|        if (BookingState == BookingStatusEnum.Cancelled)
+          95|            return;
+          96|
+          97|        BookingState = BookingStatusEnum.Cancelled;
+          98|
+          99|        AddDomainEvent(
+         100|            new BookingCancelled(
+         101|                Id,
+         102|                reason));
+         103|    }
+         104|
+         105|    public void SeatCustomer()
+         106|    {
+         107|        if (BookingState != BookingStatusEnum.Confirmed)
+         108|            throw new InvalidOperationException(
+         109|                &quot;Only confirmed booking can be seated.&quot;);
+         110|
+         111|        if (TableId == null)
+         112|            throw new InvalidOperationException(
+         113|                &quot;Table must be assigned.&quot;);
+         114|
+         115|        BookingState = BookingStatusEnum.Seated;
+         116|
+         117|        AddDomainEvent(
+         118|            new CustomerSeated(Id));
+         119|    }
+         120|
+         121|    public void Complete()
+         122|    {
+         123|        if (BookingState != BookingStatusEnum.Seated)
+         124|            throw new InvalidOperationException(
+         125|                &quot;Only seated booking can complete.&quot;);
+         126|
+         127|        BookingState = BookingStatusEnum.Completed;
+         128|
+         129|        AddDomainEvent(
+         130|            new BookingCompleted(Id));
+         131|    }
+         132|    #endregion
+         133|
+         134|    #region INVARIANTS
+         135|    private void EnsureNotFinished()
+         136|    {
+         137|        if (BookingState == BookingStatusEnum.Cancelled ||
+         138|            BookingState == BookingStatusEnum.Completed)
+         139|            throw new InvalidOperationException(
+         140|                &quot;Cannot modify a finished booking.&quot;);
+         141|    }
+         142|    #endregion
+         143|}
+         144|//Invariants:
+         145|//   Cannot double-book same table/time slot
+         146|//   PeopleNumber must be &gt; 0
+         147|//   Cannot confirm past reservation time
+         148|
+         149|//Commands
+         150|//   CreateBooking
+         151|//   ConfirmBooking
+         152|//   CancelBooking
+         153|
+         154|//State machine
+         155|//   Pending → Confirmed → Seated → Completed
+         156|//           ↘ Cancelled
+         157|
+         158|//Events
+         159|//   BookingCreated
+         160|//   BookingConfirmed
+         161|//   BookingCancelled
+         162|
+         163|public record BookingCreated(int BookingId,int CustomerId)
+         164|    : IDomainEvent;
+         165|
+         166|public record BookingConfirmed(int BookingId)
+         167|    : IDomainEvent;
+         168|
+         169|public record TableAssignedToBooking(int BookingId,int TableId)
+         170|    : IDomainEvent;
+         171|
+         172|public record BookingCancelled(int BookingId,string Reason)
+         173|    : IDomainEvent;
+         174|
+         175|public record CustomerSeated(int BookingId)
+         176|    : IDomainEvent;
+         177|
+         178|public record BookingCompleted(int BookingId)
+         179|    : IDomainEvent;
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Booking\BookingStatusEnum.cs" language="csharp" lines="10">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum BookingStatusEnum
+           4|{
+           5|    Pending = 1,
+           6|    Confirmed = 2,
+           7|    Seated = 3,
+           8|    Completed = 4,
+           9|    Cancelled = 5
+          10|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Customer.cs" language="csharp" lines="10">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class Customer
+           4|{
+           5|    public int Id { get; set; }
+           6|    public string Name { get; set; }
+           7|    public string Email { get; set; }
+           8|    public string Phone { get; set; }
+           9|}
+          10|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\MenuItem\MenuCategory.cs" language="csharp" lines="8">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class MenuCategory
+           4|{
+           5|    public int Id { get; set; }
+           6|    public string Name { get; set; }
+           7|}
+           8|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\MenuItem\MenuItem.cs" language="csharp" lines="129">
+           1|﻿using System.Xml.Linq;
+           2|using System;
+           3|
+           4|namespace CafeApp.Domain;
+           5|
+           6|public class MenuItem
+           7|{
+           8|    private MenuItem() { }
+           9|    public int Id { get; private set; }
+          10|
+          11|    public int MenuCategoryId { get; private set; } //FK
+          12|
+          13|
+          14|    public string Name { get; private set; }
+          15|    public decimal CurrentPrice { get; private set; }
+          16|    
+          17|    public MenuItemStatusEnum MenuItemStatus { get; private set; }
+          18|
+          19|
+          20|    private readonly List&lt;MenuItemModification&gt; _allowedModifications = new();
+          21|
+          22|    public IReadOnlyCollection&lt;MenuItemModification&gt;
+          23|        AllowedModifications =&gt; _allowedModifications.AsReadOnly();
+          24|
+          25|    #region Factory Method
+          26|    public static MenuItem Create(
+          27|        string name,
+          28|        decimal price,
+          29|        int categoryId)
+          30|    {
+          31|        if (string.IsNullOrWhiteSpace(name))
+          32|            throw new InvalidOperationException();
+          33|
+          34|        if (price &lt; 0)
+          35|            throw new InvalidOperationException();
+          36|
+          37|        var item = new MenuItem
+          38|        {
+          39|            Name = name,
+          40|            CurrentPrice = price,
+          41|            MenuCategoryId = categoryId,
+          42|            MenuItemStatus = MenuItemStatusEnum.Active
+          43|        };
+          44|
+          45|        item.AddDomainEvent(
+          46|            new MenuItemCreated(item.Id));
+          47|
+          48|        return item;
+          49|    }
+          50|    #endregion
+          51|    #region Commands (Behavior)
+          52|    public void ChangePrice(decimal newPrice)
+          53|    {
+          54|        if (newPrice &lt; 0)
+          55|            throw new InvalidOperationException();
+          56|        if (CurrentPrice == newPrice)
+          57|            return;
+          58|
+          59|        CurrentPrice = newPrice;
+          60|
+          61|        AddDomainEvent(
+          62|            new MenuItemPriceChanged(Id,newPrice));
+          63|    }
+          64|    public void Deactivate()
+          65|    {
+          66|        MenuItemStatus = MenuItemStatusEnum.Inactive;
+          67|
+          68|        AddDomainEvent(new MenuItemDeactivated(Id));
+          69|    }
+          70|
+          71|    public void Activate()
+          72|    {
+          73|        MenuItemStatus = MenuItemStatusEnum.Active;
+          74|
+          75|        AddDomainEvent(new MenuItemActivated(Id));
+          76|    }
+          77|    #endregion 
+          78|    private readonly List&lt;IDomainEvent&gt; _domainEvents = new();
+          79|    public IReadOnlyCollection&lt;IDomainEvent&gt; DomainEvents =&gt; _domainEvents;
+          80|
+          81|    #region Domain Events
+          82|    private void AddDomainEvent(IDomainEvent domainEvent)
+          83|    {
+          84|        _domainEvents.Add(domainEvent);
+          85|    }
+          86|
+          87|    public void ClearEvents()
+          88|    {
+          89|        _domainEvents.Clear();
+          90|    }
+          91|    #endregion
+          92|}
+          93|
+          94|//Invariants
+          95|//   Category name must be unique
+          96|//   Archived category cannot contain active MenuItems
+          97|//   Active MenuItem must belong to exactly one category
+          98|
+          99|//Commands
+         100|//   CreateMenuItem
+         101|//   UpdatePrice
+         102|//   AddModification
+         103|
+         104|//State
+         105|//Mostly static:
+         106|//   Active → Deprecated
+         107|
+         108|
+         109|//Events
+         110|//   MenuItemCreated
+         111|//   PriceUpdated
+         112|
+         113|public record MenuItemCreated(int MenuItemId)
+         114|    : IDomainEvent;
+         115|
+         116|public record MenuItemPriceChanged(int MenuItemId,decimal NewPrice)
+         117|    : IDomainEvent;
+         118|
+         119|public record MenuItemActivated(int MenuItemId)
+         120|    : IDomainEvent;
+         121|
+         122|public record MenuItemDeactivated(int MenuItemId)
+         123|    : IDomainEvent;
+         124|
+         125|public enum MenuItemStatusEnum
+         126|{
+         127|    Active = 1,
+         128|    Inactive = 2
+         129|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\MenuItem\MenuItemModification.cs" language="csharp" lines="24">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class MenuItemModification
+           4|{
+           5|    private MenuItemModification()
+           6|    {
+           7|    }
+           8|    public int MenuItemId { get; private set; } //FK + PK
+           9|    public int ModificationId { get; private set; } //FK + PK
+          10|
+          11|    #region Factory
+          12|    public static MenuItemModification Create(
+          13|        int menuItemId,
+          14|        int modificationId)
+          15|    {
+          16|
+          17|        return new MenuItemModification
+          18|        {
+          19|            MenuItemId = menuItemId,
+          20|            ModificationId = modificationId
+          21|        };
+          22|    }
+          23|    #endregion
+          24|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\MenuItem\Modification.cs" language="csharp" lines="23">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class Modification
+           4|{
+           5|    private Modification() { }
+           6|    public int Id { get; private  set; }
+           7|    public string Name { get; private set; }
+           8|    public decimal AdditionalCost { get; private set; }
+           9|
+          10|    public static Modification Create(string name, decimal additionalCost)
+          11|    {
+          12|        if (string.IsNullOrWhiteSpace(name))
+          13|            throw new InvalidOperationException();
+          14|        if (additionalCost &lt; 0)
+          15|            throw new InvalidOperationException();
+          16|        return new Modification
+          17|        {
+          18|            Name = name,
+          19|            AdditionalCost = additionalCost
+          20|        };
+          21|    }
+          22|}
+          23|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Order\OrderItem.cs" language="csharp" lines="53">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class OrderItem
+           4|{
+           5|    public int Id { get; private set; }
+           6|
+           7|
+           8|    public int OrderId { get; private set; } //FK
+           9|    public int MenuItemId { get; private set; } //FK
+          10|
+          11|
+          12|    public int Quantity { get; private set; }
+          13|    public decimal Price { get; private set; }
+          14|
+          15|    private readonly List&lt;OrderItemModification&gt; _modifications = new(); 
+          16|    public IReadOnlyCollection&lt;OrderItemModification&gt; Modifications 
+          17|        =&gt; _modifications.AsReadOnly();
+          18|
+          19|
+          20|    private OrderItem() { }
+          21|
+          22|    #region Factory Method
+          23|    public static OrderItem Create(
+          24|        int orderId, 
+          25|        int menuItemId, 
+          26|        int quantity, 
+          27|        decimal price)
+          28|    {
+          29|        if (quantity &lt;= 0)
+          30|            throw new InvalidOperationException(&quot;Quantity must be greater than zero.&quot;);
+          31|        var item = new OrderItem
+          32|        {
+          33|            Id = default, // TODO - like Guid.NewGuid(), DB auto generated
+          34|            OrderId = orderId,
+          35|            MenuItemId = menuItemId,
+          36|            Quantity = quantity,
+          37|            Price = price
+          38|        };
+          39|        return item;
+          40|    }
+          41|    #endregion
+          42|
+          43|    #region Commands (Behavior)
+          44|    public void Increase(int quantity)
+          45|    {
+          46|        if (quantity &lt;= 0)
+          47|            throw new InvalidOperationException();
+          48|
+          49|        Quantity += quantity;
+          50|    }
+          51|    #endregion 
+          52|}
+          53|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Order\OrderItemModification.cs" language="csharp" lines="11">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class OrderItemModification
+           4|{
+           5|    public int OrderItemId { get; set; } //FK + PK
+           6|    public int ModificationId { get; set; } //FK + PK
+           7|
+           8|
+           9|    public decimal AdditionalCost { get; set; }
+          10|}
+          11|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Order\Orders.cs" language="csharp" lines="187">
+           1|﻿using System.Diagnostics.Metrics;
+           2|
+           3|namespace CafeApp.Domain;
+           4|
+           5|public class Orders
+           6|{
+           7|    public int Id { get; private set; }
+           8|
+           9|
+          10|    public int CreatedByStaffId { get; private set; } //FK
+          11|    public int? TableSessionId { get; private set; } //FK
+          12|
+          13|
+          14|    public DateTime CreatedTime { get; private set; }
+          15|
+          16|
+          17|
+          18|    private readonly List&lt;OrderItem&gt; _items = new();
+          19|    public IReadOnlyCollection&lt;OrderItem&gt; OrderItems =&gt; _items.AsReadOnly();
+          20|
+          21|    private readonly List&lt;IDomainEvent&gt; _domainEvents = new();
+          22|    public IReadOnlyCollection&lt;IDomainEvent&gt; DomainEvents =&gt; _domainEvents;
+          23|
+          24|
+          25|    public OrderStatusEnum OrderStatus { get; private set; }
+          26|    public OrderTypeEnum OrderType { get; private set; }
+          27|
+          28|    private Orders() { }
+          29|
+          30|    #region Factory Method
+          31|    public static Orders Create(
+          32|        int createdByStaffId, 
+          33|        OrderTypeEnum type, 
+          34|        int? tableSessionId = null)
+          35|    {
+          36|        var order = new Orders
+          37|        {
+          38|            Id = default, // TODO - like Guid.NewGuid(), DB auto generated
+          39|            CreatedByStaffId = createdByStaffId,
+          40|            TableSessionId = tableSessionId,
+          41|            CreatedTime = DateTime.UtcNow,
+          42|            OrderStatus = OrderStatusEnum.Draft,
+          43|            OrderType = type
+          44|        };
+          45|
+          46|        order.AddDomainEvent(new OrderCreated(order.Id, createdByStaffId));
+          47|        return order;
+          48|    }
+          49|    #endregion 
+          50|
+          51|    #region Commands (Behavior)
+          52|
+          53|    public void AddItem(int menuItemId, int quantity, decimal unitPrice)
+          54|    {
+          55|        EnsureCanModify();
+          56|
+          57|        if (quantity &lt;= 0)
+          58|            throw new InvalidOperationException(&quot;Quantity must be greater than zero.&quot;);
+          59|
+          60|        var existing = _items.FirstOrDefault(x =&gt; x.MenuItemId == menuItemId);
+          61|
+          62|        if (existing != null)
+          63|        {
+          64|            existing.Increase(quantity);
+          65|        }
+          66|        else
+          67|        {
+          68|            _items.Add(OrderItem.Create(this.Id, menuItemId, quantity, unitPrice));
+          69|        }
+          70|
+          71|        AddDomainEvent(new OrderItemAdded(Id, menuItemId, quantity));
+          72|    }
+          73|
+          74|    public void RemoveItem(int menuItemId)
+          75|    {
+          76|        EnsureCanModify();
+          77|
+          78|        var item = _items.FirstOrDefault(x =&gt; x.MenuItemId == menuItemId);
+          79|
+          80|        if (item == null)
+          81|            throw new InvalidOperationException(&quot;Item not found.&quot;);
+          82|
+          83|        _items.Remove(item);
+          84|
+          85|        AddDomainEvent(new OrderItemRemoved(Id, menuItemId));
+          86|    }
+          87|
+          88|    public void Confirm()
+          89|    {
+          90|        EnsureCanModify();
+          91|
+          92|        if (!_items.Any())
+          93|            throw new InvalidOperationException(&quot;Cannot confirm empty order.&quot;);
+          94|
+          95|        OrderStatus = OrderStatusEnum.Confirmed;
+          96|
+          97|        AddDomainEvent(new OrderConfirmed(Id));
+          98|    }
+          99|
+         100|    public void Cancel(string reason)
+         101|    {
+         102|        if (OrderStatus == OrderStatusEnum.Completed)
+         103|            throw new InvalidOperationException(&quot;Cannot cancel completed order.&quot;);
+         104|
+         105|        OrderStatus = OrderStatusEnum.Cancelled;
+         106|
+         107|        AddDomainEvent(new OrderCancelled(Id, reason));
+         108|    }
+         109|
+         110|    public void Complete()
+         111|    {
+         112|        if (OrderStatus != OrderStatusEnum.Confirmed)
+         113|            throw new InvalidOperationException(&quot;Only confirmed orders can be completed.&quot;);
+         114|
+         115|        OrderStatus = OrderStatusEnum.Completed;
+         116|
+         117|        AddDomainEvent(new OrderCompleted(Id));
+         118|    }
+         119|
+         120|    #endregion
+         121|
+         122|    #region Invariants
+         123|
+         124|    private void EnsureCanModify()
+         125|    {
+         126|        if (OrderStatus == OrderStatusEnum.Cancelled)
+         127|            throw new InvalidOperationException(&quot;Order is cancelled.&quot;);
+         128|
+         129|        if (OrderStatus == OrderStatusEnum.Completed)
+         130|            throw new InvalidOperationException(&quot;Order is completed.&quot;);
+         131|    }
+         132|
+         133|    #endregion
+         134|
+         135|
+         136|    #region Domain Events
+         137|
+         138|    private void AddDomainEvent(IDomainEvent domainEvent)
+         139|    {
+         140|        _domainEvents.Add(domainEvent);
+         141|    }
+         142|
+         143|    public void ClearEvents()
+         144|    {
+         145|        _domainEvents.Clear();
+         146|    }
+         147|
+         148|    #endregion
+         149|
+         150|
+         151|}
+         152|
+         153|#region Invariants-Aggrergate-Event-Handle
+         154|
+         155|//Invariants:
+         156|//   Cannot add items if order is Closed
+         157|//   Cannot change items after Paid
+         158|//   Order must have at least 1 item before confirmation
+         159|//   Total = sum(items + modifications)
+         160|
+         161|
+         162|//Commands
+         163|//   CreateOrder
+         164|//   AddItem
+         165|//   RemoveItem
+         166|//   ConfirmOrder
+         167|//   CancelOrder
+         168|
+         169|//State machine
+         170|//  Draft → Confirmed → Preparing → Served → Closed → Paid
+         171|//           ↘ Cancelled
+         172|
+         173|//Domain events
+         174|//   OrderCreated
+         175|//   ItemAdded
+         176|//   OrderConfirmed
+         177|//   OrderCancelled
+         178|//   OrderCompleted
+         179|#endregion
+         180|
+         181|public interface IDomainEvent { }
+         182|public record OrderCreated(int OrderId, int CreatedByStaffId) : IDomainEvent;
+         183|public record OrderItemAdded(int OrderId, int MenuItemId, int Quantity) : IDomainEvent;
+         184|public record OrderItemRemoved(int OrderId, int MenuItemId) : IDomainEvent;
+         185|public record OrderConfirmed(int OrderId) : IDomainEvent;
+         186|public record OrderCancelled(int OrderId, string Reason) : IDomainEvent;
+         187|public record OrderCompleted(int OrderId) : IDomainEvent;
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Order\OrderStatusEnum.cs" language="csharp" lines="13">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum OrderStatusEnum
+           4|{
+           5|    Draft = 0,
+           6|    Created = 1,
+           7|    Confirmed = 2,
+           8|    //Preparing = 3,
+           9|    //Ready = 4,
+          10|    //Served = 5,
+          11|    Completed = 6,
+          12|    Cancelled = 7
+          13|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Order\OrderTypeEnum.cs" language="csharp" lines="8">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum OrderTypeEnum
+           4|{
+           5|    DineIn = 1,
+           6|    TakeAway = 2,
+           7|    Delivery = 3
+           8|}
+    </file>
+
+    <file path="CafeApp.Domain\Entities\Staff.cs" language="csharp" lines="8">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class  Staff
+           4|{
+           5|    public int Id { get; set; }
+           6|    public string Name { get; set; }
+           7|}
+           8|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\TableSession\Tables.cs" language="csharp" lines="28">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public class Tables
+           4|{
+           5|    private Tables() { }
+           6|    public int Id { get; private set; }
+           7|    public int SeatsNumber { get; private set; }
+           8|    public int Number { get; private set; }
+           9|
+          10|    #region Factory
+          11|    public static Tables Create(int seatsNumber, int number)
+          12|    {
+          13|        if (seatsNumber &lt;= 0)
+          14|            throw new InvalidOperationException(&quot;Table should have valid number of seats&quot;);
+          15|        if (number &lt;= 0) 
+          16|            throw new InvalidOperationException(&quot;Numbe should be positive&quot;);
+          17|
+          18|        var table = new Tables 
+          19|        { 
+          20|            Id = default,
+          21|            SeatsNumber = seatsNumber,
+          22|            Number = number
+          23|        };
+          24|        return table;
+          25|    }
+          26|    #endregion
+          27|}
+          28|
+    </file>
+
+    <file path="CafeApp.Domain\Entities\TableSession\TableSession.cs" language="csharp" lines="135">
+           1|﻿using System;
+           2|
+           3|namespace CafeApp.Domain;
+           4|
+           5|public class TableSession
+           6|{
+           7|    private TableSession() { }
+           8|    public int Id { get; private set; }
+           9|
+          10|    public int TableId { get; private set; } //FK
+          11|    public int? BookingId { get; private set; } //FK
+          12|    public int ServedByStaffId { get; private set; } //FK
+          13|    
+          14|
+          15|    public DateTime StartTime { get; private set; }
+          16|    public DateTime EndTime { get; private set; }
+          17|    
+          18|
+          19|    public int PartySize { get; private set; }
+          20|    public TableSessionStatusEnum Status { get; private set; }
+          21|
+          22|    #region Factory
+          23|    public static TableSession Start(
+          24|        int tableId,
+          25|        int servedByStaffId,
+          26|        int partySize,
+          27|        int? bookingId = null)
+          28|    {
+          29|        if (partySize &lt;= 0)
+          30|            throw new InvalidOperationException();
+          31|
+          32|        var session = new TableSession
+          33|        {
+          34|            TableId = tableId,
+          35|            ServedByStaffId = servedByStaffId,
+          36|            BookingId = bookingId,
+          37|            PartySize = partySize,
+          38|            StartTime = DateTime.UtcNow,
+          39|            Status = TableSessionStatusEnum.Active
+          40|        };
+          41|
+          42|        session.AddDomainEvent(
+          43|            new TableSessionStarted(session.Id,tableId));
+          44|
+          45|        return session;
+          46|    }
+          47|    #endregion
+          48|
+          49|    #region Command (Behavior)
+          50|    public void End()
+          51|    {
+          52|        if (Status == TableSessionStatusEnum.Ended)
+          53|            throw new InvalidOperationException();
+          54|
+          55|        EndTime = DateTime.UtcNow;
+          56|
+          57|        Status = TableSessionStatusEnum.Ended;
+          58|
+          59|        AddDomainEvent(new TableSessionEnded(Id));
+          60|    }
+          61|    public void AssignBooking(int bookingId)
+          62|    {
+          63|        if (Status == TableSessionStatusEnum.Ended)
+          64|            throw new InvalidOperationException();
+          65|
+          66|        if (BookingId != null)
+          67|            throw new InvalidOperationException();
+          68|
+          69|        BookingId = bookingId;
+          70|
+          71|        AddDomainEvent(
+          72|            new BookingAssignedToSession(Id,bookingId));
+          73|    }
+          74|    #endregion
+          75|
+          76|    private readonly List&lt;IDomainEvent&gt; _domainEvents = new();
+          77|    public IReadOnlyCollection&lt;IDomainEvent&gt; DomainEvents =&gt; _domainEvents;
+          78|
+          79|    #region Domain Events
+          80|    private void AddDomainEvent(IDomainEvent domainEvent)
+          81|    {
+          82|        _domainEvents.Add(domainEvent);
+          83|    }
+          84|
+          85|    public void ClearEvents()
+          86|    {
+          87|        _domainEvents.Clear();
+          88|    }
+          89|    #endregion
+          90|}
+          91|//Invariants:
+          92|//   EndTime must be after StartTime
+          93|//   Cannot start session if table is occupied
+          94|//   Session must link to either Booking OR walk-in, not both null
+          95|//PartySize &gt; 0
+          96|//TableId must exist
+          97|//ServedByStaffId must exist
+          98|
+          99|//Commands
+         100|//   StartSession
+         101|//   AssignBooking
+         102|//   EndSession
+         103|
+         104|//State machine
+         105|//   Active → Ended
+         106|
+         107|//Events
+         108|//   TableSessionStarted
+         109|//   TableAssigned
+         110|//   SessionEnded
+         111|
+         112|public record TableSessionStarted(int SessionId,int TableId)
+         113|    : IDomainEvent;
+         114|
+         115|public record BookingAssignedToSession(int SessionId,int BookingId)
+         116|    : IDomainEvent;
+         117|
+         118|public record TableSessionEnded(int SessionId)
+         119|    : IDomainEvent;
+         120|
+         121|
+         122|//Typical Flow
+         123|//Customer arrives
+         124|//      ↓
+         125|//TableSession.Start()
+         126|//      ↓
+         127|//TableSessionStarted
+         128|//      ↓
+         129|//Order created
+         130|//      ↓
+         131|//Bill generated
+         132|//      ↓
+         133|//Session.End()
+         134|//      ↓
+         135|//TableSessionEnded
+    </file>
+
+    <file path="CafeApp.Domain\Entities\TableSession\TableSessionStatusEnum.cs" language="csharp" lines="7">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|public enum TableSessionStatusEnum
+           4|{
+           5|    Active = 1,
+           6|    Ended = 2
+           7|}
+    </file>
+
+    <file path="CafeApp.Domain\obj\Debug\net8.0\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs" language="csharp" lines="5">
+           1|// &lt;autogenerated /&gt;
+           2|using System;
+           3|using System.Reflection;
+           4|[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(&quot;.NETCoreApp,Version=v8.0&quot;, FrameworkDisplayName = &quot;.NET 8.0&quot;)]
+           5|
+    </file>
+
+    <file path="CafeApp.Domain\obj\Debug\net8.0\CafeApp.Domain.AssemblyInfo.cs" language="csharp" lines="23">
+           1|//------------------------------------------------------------------------------
+           2|// &lt;auto-generated&gt;
+           3|//     This code was generated by a tool.
+           4|//
+           5|//     Changes to this file may cause incorrect behavior and will be lost if
+           6|//     the code is regenerated.
+           7|// &lt;/auto-generated&gt;
+           8|//------------------------------------------------------------------------------
+           9|
+          10|using System;
+          11|using System.Reflection;
+          12|
+          13|[assembly: System.Reflection.AssemblyCompanyAttribute(&quot;CafeApp.Domain&quot;)]
+          14|[assembly: System.Reflection.AssemblyConfigurationAttribute(&quot;Debug&quot;)]
+          15|[assembly: System.Reflection.AssemblyFileVersionAttribute(&quot;1.0.0.0&quot;)]
+          16|[assembly: System.Reflection.AssemblyInformationalVersionAttribute(&quot;1.0.0+0ede161e3ac70869065152d18b896f0c1e276730&quot;)]
+          17|[assembly: System.Reflection.AssemblyProductAttribute(&quot;CafeApp.Domain&quot;)]
+          18|[assembly: System.Reflection.AssemblyTitleAttribute(&quot;CafeApp.Domain&quot;)]
+          19|[assembly: System.Reflection.AssemblyVersionAttribute(&quot;1.0.0.0&quot;)]
+          20|
+          21|// Generated by the MSBuild WriteCodeFragment class.
+          22|
+          23|
+    </file>
+
+    <file path="CafeApp.Domain\obj\Debug\net8.0\CafeApp.Domain.GlobalUsings.g.cs" language="csharp" lines="9">
+           1|// &lt;auto-generated/&gt;
+           2|global using System;
+           3|global using System.Collections.Generic;
+           4|global using System.IO;
+           5|global using System.Linq;
+           6|global using System.Net.Http;
+           7|global using System.Threading;
+           8|global using System.Threading.Tasks;
+           9|
+    </file>
+
+    <file path="CafeApp.Domain\ValueObjects\VO.cs" language="csharp" lines="25">
+           1|﻿namespace CafeApp.Domain;
+           2|
+           3|
+           4|public readonly record struct CustomerId(int Value);
+           5|
+           6|
+           7|public readonly record struct StaffId(int Value);
+           8|
+           9|
+          10|public readonly record struct BillId(int Value);
+          11|public readonly record struct BillAdjustmentId(int Value);
+          12|public readonly record struct PaymentId(int Value);
+          13|
+          14|
+          15|public readonly record struct BookingId(int Value);
+          16|
+          17|
+          18|public readonly record struct OrderId(int Value);
+          19|public readonly record struct OrderItemId(int Value);
+          20|public readonly record struct OrderItemModificationId(int Value);
+          21|
+          22|
+          23|public readonly record struct TableId(int Value);
+          24|public readonly record struct TableSessionId(int Value);
+          25|
+    </file>
+
+  </files>
+</codebase>

@@ -2,7 +2,8 @@
 
 namespace CafeApp.Domain;
 
-public class Orders
+public class Order
+    : IHasDomainEvents
 {
     public int Id { get; private set; }
 
@@ -25,15 +26,15 @@ public class Orders
     public OrderStatusEnum OrderStatus { get; private set; }
     public OrderTypeEnum OrderType { get; private set; }
 
-    private Orders() { }
+    private Order() { }
 
     #region Factory Method
-    public static Orders Create(
+    public static Order Create(
         int createdByStaffId, 
         OrderTypeEnum type, 
         int? tableSessionId = null)
     {
-        var order = new Orders
+        var order = new Order
         {
             Id = default, // TODO - like Guid.NewGuid(), DB auto generated
             CreatedByStaffId = createdByStaffId,
@@ -178,7 +179,7 @@ public class Orders
 //   OrderCompleted
 #endregion
 
-public interface IDomainEvent { }
+
 public record OrderCreated(int OrderId, int CreatedByStaffId) : IDomainEvent;
 public record OrderItemAdded(int OrderId, int MenuItemId, int Quantity) : IDomainEvent;
 public record OrderItemRemoved(int OrderId, int MenuItemId) : IDomainEvent;
