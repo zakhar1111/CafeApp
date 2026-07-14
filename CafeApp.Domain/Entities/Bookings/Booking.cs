@@ -16,6 +16,8 @@ public class Booking
 
     public DateTime ReservationTime { get; private set; }
     public int PeopleNumber { get; private set; }
+    public Tables? Tables { get; private set; }
+    public List<TableSession?> TableSessions { get; private set; } = new();
 
     #region Factory Method
     public static Booking Create(int customerId,DateTime reservationTime,int peopleNumber)

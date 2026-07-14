@@ -11,8 +11,9 @@ public static class DIExtensions
     {
         services.AddScoped<IDomainEventDispatcher,DomainEventDispatcher>();
 
-        services.AddScoped<IDomainEventHandler<BookingConfirmed>,BookingConfirmedHandler>();
+        services.AddScoped<IOperationHandler<CreateBookingCommand, int>, CreateBookingHandler>();
 
+        services.AddScoped<IDomainEventHandler<BookingConfirmed>,BookingConfirmedHandler>();
         services.AddScoped<IDomainEventHandler<BookingCreated>,BookingCreatedHandler>();
 
         return services;

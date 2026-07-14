@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using CafeApp.Domain.Repositories;
+using CafeApp.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +14,10 @@ public static class DIExtensions
             options.UseSqlServer(
                 config.GetConnectionString("Default")
                 ));
+
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
+
         return services;
     }
 }

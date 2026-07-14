@@ -43,15 +43,15 @@ public sealed class BookingConfiguration
             .OnDelete(DeleteBehavior.Restrict);
 
         // Table FK (optional)
-        builder.HasOne<Table>()
+        builder.HasOne(b => b.Tables)
             .WithMany()
             .HasForeignKey(x => x.TableId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // TableSession has the FK to Booking
-        builder.HasOne<TableSession>()
+        builder.HasMany(b => b.TableSessions)
             .WithOne()//(ts => ts.Booking)
-            .HasForeignKey<TableSession>(ts => ts.BookingId)
+            .HasForeignKey(ts => ts.BookingId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

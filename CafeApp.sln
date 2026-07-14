@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.7.11919.86 stable
+VisualStudioVersion = 18.7.11919.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CafeApp.Domain", "CafeApp.Domain\CafeApp.Domain.csproj", "{D0B39A40-CABC-4431-8F6D-E50106166C3B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CafeApp.Infrastructure", "CafeApp.Infrastructure\CafeApp.Infrastructure.csproj", "{03CAB039-919D-4AE0-9FE7-BFC3E1E73588}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CafeApp.Application", "CafeApp.Application\CafeApp.Application.csproj", "{B033E351-2AE3-42A5-B008-F52BAA470403}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CafeApp.API", "CafeApp.API\CafeApp.API.csproj", "{56BCB94C-8132-4B41-ADF8-BE660D01486D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +57,18 @@ Global
 		{B033E351-2AE3-42A5-B008-F52BAA470403}.Release|x64.Build.0 = Release|Any CPU
 		{B033E351-2AE3-42A5-B008-F52BAA470403}.Release|x86.ActiveCfg = Release|Any CPU
 		{B033E351-2AE3-42A5-B008-F52BAA470403}.Release|x86.Build.0 = Release|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Debug|x64.Build.0 = Debug|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Debug|x86.Build.0 = Debug|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Release|x64.ActiveCfg = Release|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Release|x64.Build.0 = Release|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Release|x86.ActiveCfg = Release|Any CPU
+		{56BCB94C-8132-4B41-ADF8-BE660D01486D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
